@@ -1,0 +1,128 @@
+import numpy as np
+import scipy 
+import pandas as pd
+import sklearn
+import imblearn
+import xgboost as xgb
+import lightgbm as lgb
+import time
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import log_loss
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import ADASYN
+from imblearn.over_sampling import BorderlineSMOTE
+from collections import Counter
+
+data = pd.read_csv('C:/Users/Seoul/Desktop/bigcon_data.csv')
+
+#데이터셋 100,205 x 72
+data_set = data.iloc[:,2:73]
+y = data_set.iloc[:,0:1]
+x = data_set.iloc[:,1:]
+
+x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.3,random_state=1234)
+
+#1. XGB Parameter에 따른 imbalanced data 성능비교
+# 1) base_line (min_child_weight = 1로 고정) : auc 0.914
+# 2) scale_pos_weight = sum(negative) / sum(positive) , default = 1
+# 3) max_delta_step = 1~10 , default = 0 (0~inf) : auc 
+
+tmp_list = []
+auc_list = []
+time_list = []
+
+for i in range(0,7):
+
+    start = time.time()
+    model = xgb.XGBClassifier(
+                                  max_depth=3, 
+                                  min_child_weight=1, 
+                                  max_delta_step=0,
+                                  scale_pos_weight=1+4*i,
+                                  learning_rate=0.1, 
+                                  n_estimators=100, 
+                                  silent=True, 
+                                  objective='binary:logistic', 
+                                  booster='gbtree', 
+                                  n_jobs=1, 
+                                  nthread=None, 
+                                  gamma=0,                    
+                                  subsample=1, 
+                                  colsample_bytree=1, 
+                                  colsample_bylevel=1, 
+                                  reg_alpha=0, 
+                                  reg_lambda=1,                    
+                                  base_score=0.5, 
+                                  random_state=0, 
+                                  seed=1234, 
+                                  missing=None
+                            )
+    end = time.time()
+
+    model.fit(x_train,y_train,eval_metric="auc",verbose=False)
+
+    tmp1 = roc_auc_score(y_test, model.predict_proba(x_test)[:,1])
+    tmp2 = end - start
+
+    tmp_list.append(1 + 4*i)
+    auc_list.append(tmp1)
+    time_list.append(tmp2)
+
+dic = {'tmp':tmp_list,'auc':auc_list,'time':time_list}
+df = pd.DataFrame(dic)
+df
+
+
+#LightGBM
+tmp_list2 = []
+auc_list2 = []
+time_list2 = []
+
+#for i in range(1,7):
+
+    start = time.time()
+    model = lgb.LGBMClassifier(
+                                    boosting_type='gbdt',
+                                    is_unbalance = True,
+                                    scale_pos_weight = 99,
+                                    num_leaves=31,
+                                    max_depth=-1,
+                                    max_bin = 255,
+                                    learning_rate=0.01,
+                                    n_estimators=1000,
+                                    subsample_for_bin=200000, #sparse하면 크게 잡는게 낫다
+                                    objective='binary',
+                                    class_weight=None,
+                                    min_split_gain=0.0,
+                                    min_child_weight=5,
+                                    min_child_samples=20,
+                                    subsample=0.6,
+                                    subsample_freq=0,
+                                    colsample_bytree=0.3,
+                                    reg_alpha=0.0,
+                                    reg_lambda=0.0,
+                                    random_state=None,
+                                    n_jobs=1,
+                                    silent=True,
+                                    importance_type='split'
+                              )
+    end = time.time()
+
+    model.fit(x_train,y_train,eval_metric="auc")
+             #early_stopping_rounds , feature_name, categorical_feature
+
+    tmp1 = roc_auc_score(y_test, model.predict_proba(x_test)[:,1])
+    tmp2 = end - start
+
+    #tmp_list2.append(1 + 4*i)
+    auc_list2.append(tmp1)
+    time_list2.append(tmp2)
+
+
+
+
+
