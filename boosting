@@ -24,9 +24,20 @@ data_set = data.iloc[:,2:73]
 y = data_set.iloc[:,0:1]
 x = data_set.iloc[:,1:]
 
+#Smote
+sm = SMOTE(ratio=0.12)#10%까지만 증가
+x_sm_res , y_sm_res = sm.fit_sample(x, y) 
+
+'''
+sampling 비율이 늘어날수록 scale_pos_weight 영향없음, 이전에 성능이 올랐던건 단순히 minor 샘플이 많아져서 성능 향상
+'''
+
+
 x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.3,random_state=1234)
 
+#########################
 #1. XGB Parameter에 따른 imbalanced data 성능비교
+#########################
 # 1) base_line (min_child_weight = 1로 고정) : auc 0.914
 # 2) scale_pos_weight = sum(negative) / sum(positive) , default = 1
 # 3) max_delta_step = 1~10 , default = 0 (0~inf) : auc 
@@ -76,8 +87,9 @@ dic = {'tmp':tmp_list,'auc':auc_list,'time':time_list}
 df = pd.DataFrame(dic)
 df
 
-
-#LightGBM
+#########################
+#2. LightGBM
+#########################
 tmp_list2 = []
 auc_list2 = []
 time_list2 = []
