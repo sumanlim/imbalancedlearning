@@ -1,0 +1,60 @@
+# Data Load
+# UCI repository robot execution failures data set
+# http://archive.ics.uci.edu/ml/datasets/Robot+Execution+Failures
+# timeseries : 1320 x 8
+# y : 88 x 2
+import matplotlib.pyplot as plt
+from tsfresh import select_features
+from tsfresh import extract_features
+from tsfresh import extract_relevant_features
+from tsfresh.utilities.dataframe_functions import impute
+from tsfresh.examples.robot_execution_failures import download_robot_execution_failures, \
+    load_robot_execution_failures
+download_robot_execution_failures()
+timeseries, y = load_robot_execution_failures()
+
+#data type
+timeseries.dtypes
+
+#시도표
+timeseries[timeseries['id'] == 21].plot(subplots=True, sharex=True, figsize=(10,10))
+plt.show()
+
+#For extracting all features
+extracted_features = extract_features(timeseries, column_id="id", column_sort="time")
+extracted_features.shape
+extracted_features.head
+extracted_features['T_z__spkt_welch_density__coeff_8']
+
+#NaN 값 -> 0으로 바꿈
+impute(extracted_features)
+extracted_features['T_z__spkt_welch_density__coeff_8']
+
+# Feautres_filtered
+features_filtered = select_features(extracted_features, y)
+features_filtered.shape
+features_filtered.head
+
+# extraction & filtering
+features_filtered_direct = extract_relevant_features(timeseries, y,
+                                                     column_id='id', column_sort='time')
+features_filtered_direct.shape
+list(features_filtered_direct)
+
+
+
+#
+import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from tsfresh.examples import load_robot_execution_failures
+from tsfresh.transformers import RelevantFeatureAugmenter
+
+pipeline = Pipeline([('augmenter', RelevantFeatureAugmenter(column_id='id', column_sort='time')),
+            ('classifier', RandomForestClassifier())])
+
+df_ts, y = load_robot_execution_failures()
+X = pd.DataFrame(index=y.index)
+
+pipeline.set_params(augmenter__timeseries_container=df_ts)
+pipeline.fit(X, y)
