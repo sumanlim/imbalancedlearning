@@ -1,0 +1,72 @@
+### LIME 예시 (RandomForest)
+
+import lime
+import sklearn
+import numpy as np
+from array import array
+
+iris = sklearn.datasets.load_iris()
+train, test, labels_train, labels_test = sklearn.model_selection.train_test_split(iris.data, iris.target, train_size=0.80)
+
+#
+rf = sklearn.ensemble.RandomForestClassifier(n_estimators=500)
+rf.fit(train, labels_train)
+
+explainer = lime.lime_tabular.LimeTabularExplainer(train, feature_names=iris.feature_names, class_names=iris.target_names, discretize_continuous=True)
+
+
+#이 부분을 바꿔가며 각 예측결과에 대해 해석
+i = np.random.randint(0, test.shape[0])
+exp = explainer.explain_instance(test[i], rf.predict_proba, num_features=2, top_labels=1)
+exp.show_in_notebook(show_table=True, show_all=False)
+
+
+
+### SHAP 예시
+
+# data_set : 연체여부 예측
+import matplotlib.pyplot as plt
+import pandas as pd
+import shap
+import lightgbm as lgb
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+from sklearn.ensemble.partial_dependence import partial_dependence, plot_partial_dependence
+from sklearn.preprocessing import Imputer
+data = pd.read_csv('C:/Users/Seoul/Desktop/ex_data.csv')
+
+#데이터셋 100,205 x 72
+data_set = data.iloc[:,2:73]
+y = data_set.iloc[:,0:1]
+x = data_set.iloc[:,1:]
+
+x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.3,random_state=1234)
+
+d_train=lgb.Dataset(x_train,label=y_train)
+d_test=lgb.Dataset(x_test,label=y_test)
+
+params = {'metric' : 'auc',
+          'boosting_type' : 'gbdt',
+          'n_estimators' : 300,
+          'verbose' : -1
+}
+
+lgbm = lgb.train(params,
+                 d_train,
+                 valid_sets=[d_test]
+                 )
+
+explainer = shap.TreeExplainer(lgbm)
+%time shap_values = explainer.shap_values(x)
+
+# force_plot (jupyter notebook 지원 안되는 듯)
+shap.initjs()
+shap.force_plot(explainer.expected_value,shap_values[0,:],x.iloc[0,:])
+
+# summary_plot
+shap.summary_plot(shap_values, x)
+
+# dependence Plots
+for name in x.columns:
+    shap.dependence_plot(name, shap_values, x, display_features=x)
