@@ -1,0 +1,98 @@
+### Tree SHAP for tabular data
+
+# data_set : 연체여부 예측
+import matplotlib.pyplot as plt
+import pandas as pd
+import shap
+import lightgbm as lgb
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+from sklearn.ensemble.partial_dependence import partial_dependence, plot_partial_dependence
+from sklearn.preprocessing import Imputer
+data = pd.read_csv('C:/Users/Seoul/Desktop/ex_data.csv')
+
+#데이터셋 100,205 x 72
+data_set = data.iloc[:,2:73]
+y = data_set.iloc[:,0:1]
+x = data_set.iloc[:,1:]
+
+x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.3,random_state=1234)
+
+d_train=lgb.Dataset(x_train,label=y_train)
+d_test=lgb.Dataset(x_test,label=y_test)
+
+params = {'metric' : 'auc',
+          'boosting_type' : 'gbdt',
+          'n_estimators' : 300,
+          'verbose' : -1
+}
+
+lgbm = lgb.train(params,
+                 d_train,
+                 valid_sets=[d_test]
+                 )
+
+explainer = shap.TreeExplainer(lgbm)
+%time shap_values = explainer.shap_values(x)
+
+# force_plot (jupyter notebook 지원 안되는 듯)
+shap.initjs()
+shap.force_plot(explainer.expected_value,shap_values[0,:],x.iloc[0,:])
+
+# summary_plot
+shap.summary_plot(shap_values, x)
+
+# dependence Plots
+for name in x.columns:
+    shap.dependence_plot(name, shap_values, x, display_features=x)
+    
+    
+   
+### LIME for text
+#lime text
+import lime
+import sklearn
+import numpy as np
+import sklearn
+import sklearn.ensemble
+import sklearn.metrics
+from sklearn.datasets import fetch_20newsgroups
+from lime import lime_text
+from sklearn.pipeline import make_pipeline
+from lime.lime_text import LimeTextExplainer
+
+
+categories = ['alt.atheism', 'soc.religion.christian']
+newsgroups_train = fetch_20newsgroups(subset='train', categories=categories)
+newsgroups_test = fetch_20newsgroups(subset='test', categories=categories)
+class_names = ['atheism', 'christian']
+
+vectorizer = sklearn.feature_extraction.text.TfidfVectorizer(lowercase=False)
+train_vectors = vectorizer.fit_transform(newsgroups_train.data)
+test_vectors = vectorizer.transform(newsgroups_test.data)
+
+rf = sklearn.ensemble.RandomForestClassifier(n_estimators=500)
+rf.fit(train_vectors, newsgroups_train.target)
+
+pred = rf.predict(test_vectors)
+sklearn.metrics.f1_score(newsgroups_test.target, pred, average='binary')
+c = make_pipeline(vectorizer, rf)
+explainer = LimeTextExplainer(class_names=class_names)
+
+
+idx = 83
+exp = explainer.explain_instance(newsgroups_test.data[idx], c.predict_proba, num_features=6)
+print('Document id: %d' % idx)
+print('Probability(christian) =', c.predict_proba([newsgroups_test.data[idx]])[0,1])
+print('True class: %s' % class_names[newsgroups_test.target[idx]])
+
+#Visualization
+exp.as_list()
+exp.show_in_notebook(text=True)
+
+
+### LIME for image
+https://marcotcr.github.io/lime/tutorials/Tutorial%20-%20images.html
+
+
